@@ -3,7 +3,7 @@ package cacheSimulator
 import scala.io.Source
 import scala.math.log10
 import java.io.{FileNotFoundException, IOException}
-import cacheSimulator.ConstantObject.{INSTR_READ, BYTE_PER_LINE}
+import cacheSimulator.ConstantObject.{INSTR_READ, BYTE_PER_LINE, NUMBER_OF_SETS, ASSOCIATIVE}
 
 object main {
   def main(args:Array[String]):Unit = {
@@ -14,8 +14,10 @@ object main {
 //      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, 1, 32)
 //      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, 1, 32)
 //      val L2              = Cache("L2", BYTE_PER_LINE, 8, 256)
-      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, 1024, 1)
-      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, 1024, 1)
+//      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, ASSOCIATIVE, NUMBER_OF_SETS)
+//      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, ASSOCIATIVE, NUMBER_OF_SETS)
+      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, ASSOCIATIVE, 512)
+      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, ASSOCIATIVE, 512)
       val L2              = Cache("L2", BYTE_PER_LINE, 8, 256)
 //      val L3              = Cache("L3", BYTE_PER_LINE, 8, 256)
       
@@ -35,15 +37,15 @@ object main {
           case INSTR_READ => L1_Instruction.access(accessType, addressContent)
           case _ => L1_Data.access(accessType, addressContent)
          }
-        if (count % 1000 == 0)  {
-          println(count + "("+ (count/10000000)+")")
-          L1_Instruction.printStatistics()
-          L1_Data.printStatistics()
+        if (count % 5000 == 0)  {
+          println(count + "("+ (count*1.0/100000)+")")
         }
        }
       println("Finish all access")
       
       println("Start print statistics")
+      L1_Instruction.printStatistics()
+      L1_Data.printStatistics()
       println("Finishprint statistics")
     } catch {
       case e: FileNotFoundException => println("Couldn't find that file.")
@@ -67,8 +69,10 @@ object ConstantObject {
   val INSTR_READ = 2
   
   val CACHE_ADDR_SIZE = 64
-  val BYTE_PER_LINE = 64 // L
-  val WORD_SIZE = 4
+  val BYTE_PER_LINE = 128 // L
+  val NUMBER_OF_SETS = 4096 // N
+  val ASSOCIATIVE = 4096 // K
+  val WORD_SIZE = 1
   
   // Access latency (cycles)
   val L1_INST_LATENCY = 4
