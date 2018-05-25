@@ -3,34 +3,48 @@ package cacheSimulator
 import scala.io.Source
 import scala.math.log10
 import java.io.{FileNotFoundException, IOException}
-import cacheSimulator.ConstantObject.{INST_READ, BYTE_PER_LINE}
+import cacheSimulator.ConstantObject.{INSTR_READ, BYTE_PER_LINE}
 
 object main {
   def main(args:Array[String]):Unit = {
 		 val source = Source.fromFile(ConstantObject.TRACE1_PATH)
     // Get trace content from source
     try {
-      val lines = source.getLines
-      val content = lines.map { x => 
-        val splitX = x.split(" ")
-        (splitX(0).toInt, splitX(1).toLong)
-      }.toList
       
-      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, 1, 32)
-      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, 1, 32)
+//      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, 1, 32)
+//      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, 1, 32)
+//      val L2              = Cache("L2", BYTE_PER_LINE, 8, 256)
+      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, 1024, 1)
+      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, 1024, 1)
       val L2              = Cache("L2", BYTE_PER_LINE, 8, 256)
 //      val L3              = Cache("L3", BYTE_PER_LINE, 8, 256)
       
       L1_Instruction.setSubCache(L2)
       L1_Data.setSubCache(L2)
       
-      content.foreach{ x =>
-        x._1 match {
-        case INST_READ => L1_Instruction.access(x._1, x._2)
-        case _ => L1_Data.access(x._1, x._2)
+      println("Start all access")
+      val lines = source.getLines
+      var count = 0
+      lines.foreach { x => 
+//      println(x)
+        count += 1
+        val splitX = x.split(" ")
+        val accessType = splitX(0).toInt
+        val addressContent = java.lang.Long.decode(splitX(1))
+        accessType match {
+          case INSTR_READ => L1_Instruction.access(accessType, addressContent)
+          case _ => L1_Data.access(accessType, addressContent)
+         }
+        if (count % 1000 == 0)  {
+          println(count + "("+ (count/10000000)+")")
+          L1_Instruction.printStatistics()
+          L1_Data.printStatistics()
         }
-      }
+       }
+      println("Finish all access")
       
+      println("Start print statistics")
+      println("Finishprint statistics")
     } catch {
       case e: FileNotFoundException => println("Couldn't find that file.")
       case e: IOException => println("Got an IOException!")
@@ -49,10 +63,10 @@ object ConstantObject {
   // Data format
   val DATA_READ = 0
   val DATA_WRITE = 1
-  val INST_READ = 2
+  val INSTR_READ = 2
   
-  val CACHE_ADDR_SIZE = 32
-  val BYTE_PER_LINE = 256 // L
+  val CACHE_ADDR_SIZE = 64
+  val BYTE_PER_LINE = 64 // L
   val WORD_SIZE = 4
   
   // Access latency (cycles)
