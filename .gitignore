@@ -3,3 +3,4 @@ src/main/resources/
 bin/
 Trace1
 Trace2
+.cache-main
