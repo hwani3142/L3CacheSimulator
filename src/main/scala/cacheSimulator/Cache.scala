@@ -7,8 +7,7 @@ import scala.math.pow
 
 case class Cache 
   (identifier:String, 
-//      l:Int, k:Int, n:Int){
-	l:Int, k:Int, size:Int){
+      l:Int, k:Int, n:Int){
   
   // Counting value
   var totalCount = 0
@@ -22,18 +21,15 @@ case class Cache
   // sub cache
   var subCache:Cache = _
  
-//  val (tagBit, indexBit, offsetBit) = {
-		  val (tagBit, indexBit, offsetBit, n) = {
-    val blockSize = l * WORD_SIZE
-    val size = this.size * KB
-    val numOfBlocks = size / blockSize
-    val numOfSets = numOfBlocks / this.k
+  val (tagBit, indexBit, offsetBit) = {
+//    val blockSize = l * WORD_SIZE
+//    val size = this.size * KB
+//    val numOfBlocks = size / blockSize
+//    val numOfSets = numOfBlocks / this.k
     val offset = log2(l)
-//    println(blockSize +", "+size+", "+numOfBlocks+", "+numOfSets)
-//    val index = log2(n)
-    val index = log2(numOfSets)
+    val index = log2(n)
     val tag = CACHE_ADDR_SIZE - index - offset
-    (tag, index, offset, numOfSets)
+    (tag, index, offset)
   }
   
   // cache Structure (valid , tag)
@@ -48,19 +44,16 @@ case class Cache
   val offsetBitMask = (pow(2, offsetBit).toLong - 1)
   
   def access(accessType:Int, content:Long):Unit = {
-//		  println("k : " + k + " , n: " + n)
 //		  println(tagBit)
 //		  println(indexBit)
 //		  println(offsetBit)
-//    println(tagBitMask.toBinaryString + " , " + tagBitMask)
+//    println(tagBitMask.toBinaryString)
 //    println(indexBitMask.toBinaryString)
 //    println(offsetBitMask.toBinaryString)
     totalCount += 1
     
- 		var contentIndex= ( content & indexBitMask ) >>> offsetBit
- 		var contentTag = ( content ) >>> (indexBit + offsetBit)
-//  var contentIndex= ( content & indexBitMask ) >>> offsetBit
-//  var contentTag = ( content & tagBitMask) >>> (indexBit + offsetBit)
+ 		var contentIndex= ( content & indexBitMask ) >> offsetBit
+ 		var contentTag = ( content & tagBitMask) >> (indexBit + offsetBit)
  		
 	  var LRU_i = 0
 	  var LRU_j = 0
@@ -68,13 +61,8 @@ case class Cache
 	  // Increment all LRU count
 	  LRU = LRU.map ( x =>  x.map(_+1) )
 	  // Set maximum LRU count, i, j
-//	  println("toLong :"+contentTag)
-//	  println("toInt:"+contentTag.toInt)
 //	  println("toLong :"+contentIndex)
 //	  println("toInt:"+contentIndex.toInt)
-//	  println("toBinaryString:"+contentTag.toBinaryString)
-//	  println("toBinaryString:"+content.toBinaryString)
-//	  println("toBinaryString:"+ (content & tagBitMask) + ", " + tagBitMask)
 	  if ( LRU_max < LRU(contentIndex.toInt).max ) {
 	    LRU_max = LRU(contentIndex.toInt).max
 	    LRU_i = contentIndex.toInt
@@ -85,9 +73,8 @@ case class Cache
     //  Find proper block index:n | associative:k(iteration) | (valid = true & tag is the same)
     val res = cacheStruct.find(contentIndex.toInt, contentTag.toInt) 
     if (res._1 == true) {
-      hitCount += 1
       LRU(contentIndex.toInt)(res._2) = 0
-    	return 
+    	 return 
     }
     // 2) MISS case
     accessType match {
@@ -104,46 +91,38 @@ case class Cache
 		  def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
 			  val p = new java.io.PrintWriter(f)
 					  try { op(p) } finally { p.close() }
-		  }
 			  import java.io._
-			  printToFile(new File("C:\\test\\result_"+identifier+".txt")) { p =>
+			  printToFile(new File("/home/hwan/workspace/ca-project/results.txt")) { p =>
 			    p.println("Name :"+identifier)
 			    p.println("TotalCount : "+totalCount)
-			    p.println("hitCount : "+hitCount)
 			    p.println("InstrReadMissCount : "+instrReadMissCount)
 			    p.println("dataReadMissCount : "+dataReadMissCount)
 			    p.println("dataWriteMissCount : "+dataWriteMissCount)
 			    p.println()
 			  }
-		  
+		  }
   }
 }
 case class CacheStruct (n:Int, k:Int) {
-  var data = Array.fill[(Boolean,Int)](n,k)(false, -1)
-//  var valid = Array.fill[Boolean](n, k)(false)
-//  var tag =   Array.fill[Int](n, k)(-1)
+  var valid = Array.fill[Boolean](n, k)(false)
+  var tag =   Array.fill[Int](n, k)(-1)
   
   def find(contentIndex:Int, contentTag:Int):(Boolean, Int) = {
     	// (1) check valid
-//    var res = this.data(contentIndex).zipWithIndex.filter(x => (x._1._1 == true) && (x._1._2 == contentTag))
-    val list = List.range(0, k)
-    var res = list.filter(index => data(contentIndex)(index)._1 == true && data(contentIndex)(index)._2 == contentTag)
-    
-    if (res.size > 0) {
-    	// Find proper set := return index for initializing LRU count
-//    	(true, res.map(x => x._2).mkString.toInt)
-    	(true, res(0))
-    } else {
-    	// Cannot find proper set
-    	(false, -1)
-    }
+    	var filteredValid  = this.valid(contentIndex).zipWithIndex.filter(x => (x._1 == true)).map( x => x._2)
+    	// (2) check tag
+    	var filteredTag = this.tag(contentIndex).zipWithIndex.filter(x => (filteredValid.contains(x._2)) && (x._1 == contentTag))
+    	if (filteredTag.size > 0) {
+    		// Find proper set := return index for initializing LRU count
+    	  (true, filteredTag.map(x => x._2).mkString.toInt)
+    	} else {
+    		// Cannot find proper set
+    	  (false, -1)
+    	}
   }
   def setNewPosition(i:Int, j:Int, contentTag:Int) {
-//    this.valid(i)(j) = true
-//    this.tag(i)(j) = contentTag
-//    this.data(i)(j)._1 = true
-// 		this.data(i)(j)._2 = contentTag
-    this.data(i)(j) = (true, contentTag)
+    this.valid(i)(j) = true
+    this.tag(i)(j) = contentTag
   }
   
 }
