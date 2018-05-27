@@ -11,18 +11,27 @@ object main {
     // Get trace content from source
     try {
       
-//      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, 1, 32)
-//      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, 1, 32)
-//      val L2              = Cache("L2", BYTE_PER_LINE, 8, 256)
 //      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, ASSOCIATIVE, NUMBER_OF_SETS)
 //      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, ASSOCIATIVE, NUMBER_OF_SETS)
-      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, ASSOCIATIVE, 512)
-      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, ASSOCIATIVE, 512)
+      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, ASSOCIATIVE, 64)
+      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, ASSOCIATIVE, 64)
       val L2              = Cache("L2", BYTE_PER_LINE, 8, 256)
 //      val L3              = Cache("L3", BYTE_PER_LINE, 8, 256)
       
       L1_Instruction.setSubCache(L2)
       L1_Data.setSubCache(L2)
+      
+      
+      import java.util.Calendar
+      import java.text.SimpleDateFormat
+      val time = Calendar.getInstance.getTime
+      val name = {
+    		  val month = new SimpleDateFormat("MM")
+    				  val day = new SimpleDateFormat("dd")
+    				  val hour = new SimpleDateFormat("hh")
+    				  val min = new SimpleDateFormat("mm")
+    				  month.format(time) + day.format(time) + hour.format(time) + min.format(time)
+      }
       
       println("Start all access")
       val lines = source.getLines
@@ -37,15 +46,15 @@ object main {
           case INSTR_READ => L1_Instruction.access(accessType, addressContent)
           case _ => L1_Data.access(accessType, addressContent)
          }
-        if (count % 5000 == 0)  {
+        if (count % 10000 == 0)  {
           println(count + "("+ (count*1.0/100000)+")")
         }
        }
       println("Finish all access")
       
       println("Start print statistics")
-      L1_Instruction.printStatistics()
-      L1_Data.printStatistics()
+      L1_Instruction.printStatistics(name)
+      L1_Data.printStatistics(name)
       println("Finishprint statistics")
     } catch {
       case e: FileNotFoundException => println("Couldn't find that file.")
@@ -69,9 +78,9 @@ object ConstantObject {
   val INSTR_READ = 2
   
   val CACHE_ADDR_SIZE = 64
-  val BYTE_PER_LINE = 128 // L
+  val BYTE_PER_LINE = 64 // L
+  val ASSOCIATIVE = 1024 // K
   val NUMBER_OF_SETS = 4096 // N
-  val ASSOCIATIVE = 4096 // K
   val WORD_SIZE = 1
   
   // Access latency (cycles)

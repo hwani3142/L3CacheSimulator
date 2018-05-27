@@ -29,7 +29,6 @@ case class Cache
     val numOfBlocks = size / blockSize
     val numOfSets = numOfBlocks / this.k
     val offset = log2(l)
-//    println(blockSize +", "+size+", "+numOfBlocks+", "+numOfSets)
 //    val index = log2(n)
     val index = log2(numOfSets)
     val tag = CACHE_ADDR_SIZE - index - offset
@@ -65,8 +64,10 @@ case class Cache
 	  var LRU_i = 0
 	  var LRU_j = 0
 	  var LRU_max = 0
-	  // Increment all LRU count
-	  LRU = LRU.map ( x =>  x.map(_+1) )
+	  // Increment LRU count having proper contentIndex
+//	  LRU = LRU.map ( x =>  x.map(_+1) )
+	  LRU(contentIndex.toInt) = LRU(contentIndex.toInt).map(_+1)
+	  
 	  // Set maximum LRU count, i, j
 //	  println("toLong :"+contentTag)
 //	  println("toInt:"+contentTag.toInt)
@@ -95,27 +96,28 @@ case class Cache
       case DATA_WRITE => dataWriteMissCount += 1
       case INSTR_READ => instrReadMissCount += 1
     }
+    missCount += 1
     cacheStruct.setNewPosition(LRU_i, LRU_j, contentTag.toInt)
   }
   def setSubCache(cache:Cache):Unit = {
     this.subCache = cache
   }
-  def printStatistics():Unit = {
+  def printStatistics(name:String):Unit = {
 		  def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
 			  val p = new java.io.PrintWriter(f)
 					  try { op(p) } finally { p.close() }
 		  }
-			  import java.io._
-			  printToFile(new File("C:\\test\\result_"+identifier+".txt")) { p =>
-			    p.println("Name :"+identifier)
-			    p.println("TotalCount : "+totalCount)
-			    p.println("hitCount : "+hitCount)
-			    p.println("InstrReadMissCount : "+instrReadMissCount)
-			    p.println("dataReadMissCount : "+dataReadMissCount)
-			    p.println("dataWriteMissCount : "+dataWriteMissCount)
-			    p.println()
-			  }
-		  
+			import java.io.File
+			printToFile(new File("C:\\test\\"+name+"_"+identifier.split(" ")(1).substring(0,1)+".txt")) { p =>
+			  p.println("Name :"+identifier)
+			  p.println("TotalCount : "+totalCount)
+			  p.println("hitCount : "+hitCount)
+			  p.println("missCount : "+missCount)
+			  p.println("InstrReadMissCount : "+instrReadMissCount)
+			  p.println("dataReadMissCount : "+dataReadMissCount)
+			  p.println("dataWriteMissCount : "+dataWriteMissCount)
+			  p.println()
+		  }
   }
 }
 case class CacheStruct (n:Int, k:Int) {
@@ -125,13 +127,11 @@ case class CacheStruct (n:Int, k:Int) {
   
   def find(contentIndex:Int, contentTag:Int):(Boolean, Int) = {
     	// (1) check valid
-//    var res = this.data(contentIndex).zipWithIndex.filter(x => (x._1._1 == true) && (x._1._2 == contentTag))
     val list = List.range(0, k)
     var res = list.filter(index => data(contentIndex)(index)._1 == true && data(contentIndex)(index)._2 == contentTag)
     
     if (res.size > 0) {
     	// Find proper set := return index for initializing LRU count
-//    	(true, res.map(x => x._2).mkString.toInt)
     	(true, res(0))
     } else {
     	// Cannot find proper set
@@ -139,10 +139,6 @@ case class CacheStruct (n:Int, k:Int) {
     }
   }
   def setNewPosition(i:Int, j:Int, contentTag:Int) {
-//    this.valid(i)(j) = true
-//    this.tag(i)(j) = contentTag
-//    this.data(i)(j)._1 = true
-// 		this.data(i)(j)._2 = contentTag
     this.data(i)(j) = (true, contentTag)
   }
   
