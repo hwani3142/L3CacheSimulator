@@ -3,7 +3,7 @@ package cacheSimulator
 import scala.io.Source
 import scala.math.log10
 import java.io.{FileNotFoundException, IOException}
-import cacheSimulator.ConstantObject.{INSTR_READ, BYTE_PER_LINE, NUMBER_OF_SETS, ASSOCIATIVE}
+import cacheSimulator.ConstantObject.{INSTR_READ, BYTE_PER_LINE, NUMBER_OF_SETS, L1_ASSOCIATIVE, L2_ASSOCIATIVE}
 
 object main {
   def main(args:Array[String]):Unit = {
@@ -13,9 +13,9 @@ object main {
       
 //      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, ASSOCIATIVE, NUMBER_OF_SETS)
 //      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, ASSOCIATIVE, NUMBER_OF_SETS)
-      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, ASSOCIATIVE, 64)
-      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, ASSOCIATIVE, 64)
-      val L2              = Cache("L2", BYTE_PER_LINE, 8, 256)
+      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, L1_ASSOCIATIVE, 32) // n = 128
+      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, L1_ASSOCIATIVE, 32)
+      val L2              = Cache("L2 2", BYTE_PER_LINE, L2_ASSOCIATIVE, 256) // n = 128
 //      val L3              = Cache("L3", BYTE_PER_LINE, 8, 256)
       
       L1_Instruction.setSubCache(L2)
@@ -46,8 +46,8 @@ object main {
           case INSTR_READ => L1_Instruction.access(accessType, addressContent)
           case _ => L1_Data.access(accessType, addressContent)
          }
-        if (count % 10000 == 0)  {
-          println(count + "("+ (count*1.0/100000)+")")
+        if (count % 100000 == 0)  {
+          println(count + " ("+ (count*1.0/100000)+"%)")
         }
        }
       println("Finish all access")
@@ -55,6 +55,7 @@ object main {
       println("Start print statistics")
       L1_Instruction.printStatistics(name)
       L1_Data.printStatistics(name)
+      L2.printStatistics(name)
       println("Finishprint statistics")
     } catch {
       case e: FileNotFoundException => println("Couldn't find that file.")
@@ -78,8 +79,9 @@ object ConstantObject {
   val INSTR_READ = 2
   
   val CACHE_ADDR_SIZE = 64
-  val BYTE_PER_LINE = 64 // L
-  val ASSOCIATIVE = 1024 // K
+  val BYTE_PER_LINE = 256 // L
+  val L1_ASSOCIATIVE = 1 // L1 K
+  val L2_ASSOCIATIVE = 8 // L2 K
   val NUMBER_OF_SETS = 4096 // N
   val WORD_SIZE = 1
   

@@ -98,6 +98,10 @@ case class Cache
     }
     missCount += 1
     cacheStruct.setNewPosition(LRU_i, LRU_j, contentTag.toInt)
+    
+    if (this.subCache != null) {
+      this.subCache.access(accessType, content)
+    }
   }
   def setSubCache(cache:Cache):Unit = {
     this.subCache = cache
