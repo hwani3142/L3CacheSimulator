@@ -3,24 +3,23 @@ package cacheSimulator
 import scala.io.Source
 import scala.math.log10
 import java.io.{FileNotFoundException, IOException}
-import cacheSimulator.ConstantObject.{INSTR_READ, BYTE_PER_LINE, NUMBER_OF_SETS, L1_ASSOCIATIVE, L2_ASSOCIATIVE}
+import cacheSimulator.ConstantObject.{ PATH_PREFIX, TRACE1, TRACE2,
+                                      INSTR_READ, BYTE_PER_LINE, //NUMBER_OF_SETS, 
+                                      L1_ASSOCIATIVE, L2_ASSOCIATIVE, L3_ASSOCIATIVE}
 
 object main {
   def main(args:Array[String]):Unit = {
-		 val source = Source.fromFile(ConstantObject.TRACE1_PATH)
+		val source = Source.fromFile(PATH_PREFIX + TRACE2)
     // Get trace content from source
     try {
-      
-//      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, ASSOCIATIVE, NUMBER_OF_SETS)
-//      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, ASSOCIATIVE, NUMBER_OF_SETS)
       val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, L1_ASSOCIATIVE, 32) // n = 128
       val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, L1_ASSOCIATIVE, 32)
       val L2              = Cache("L2 2", BYTE_PER_LINE, L2_ASSOCIATIVE, 256) // n = 128
-//      val L3              = Cache("L3", BYTE_PER_LINE, 8, 256)
+      val L3              = Cache("L3 3", BYTE_PER_LINE, L3_ASSOCIATIVE, 2048)
       
       L1_Instruction.setSubCache(L2)
       L1_Data.setSubCache(L2)
-      
+      L2.setSubCache(L3)
       
       import java.util.Calendar
       import java.text.SimpleDateFormat
@@ -37,7 +36,6 @@ object main {
       val lines = source.getLines
       var count = 0
       lines.foreach { x => 
-//      println(x)
         count += 1
         val splitX = x.split(" ")
         val accessType = splitX(0).toInt
@@ -46,7 +44,7 @@ object main {
           case INSTR_READ => L1_Instruction.access(accessType, addressContent)
           case _ => L1_Data.access(accessType, addressContent)
          }
-        if (count % 100000 == 0)  {
+        if (count % 500000 == 0)  {
           println(count + " ("+ (count*1.0/100000)+"%)")
         }
        }
@@ -56,7 +54,8 @@ object main {
       L1_Instruction.printStatistics(name)
       L1_Data.printStatistics(name)
       L2.printStatistics(name)
-      println("Finishprint statistics")
+      L3.printStatistics(name)
+      println("Finish print statistics")
     } catch {
       case e: FileNotFoundException => println("Couldn't find that file.")
       case e: IOException => println("Got an IOException!")
@@ -70,8 +69,9 @@ object ConstantObject {
   // Trace file path
 //  val PATH_PREFIX = "/home/hwan/workspace/ca-project/src/main/resources/"
 	val PATH_PREFIX = "C:\\test\\"
-  val TRACE1_PATH = PATH_PREFIX + "Trace1"
-  val TRACE2_PATH = PATH_PREFIX + "Trace2"
+	val RESULT_PREFIX = "projectResult\\"
+  val TRACE1 = "Trace1"
+  val TRACE2 = "Trace2"
   
   // Data format
   val DATA_READ = 0
@@ -79,10 +79,12 @@ object ConstantObject {
   val INSTR_READ = 2
   
   val CACHE_ADDR_SIZE = 64
-  val BYTE_PER_LINE = 256 // L
+//  val BYTE_PER_LINE = 256 // L
+  val BYTE_PER_LINE = 64 // L
   val L1_ASSOCIATIVE = 1 // L1 K
   val L2_ASSOCIATIVE = 8 // L2 K
-  val NUMBER_OF_SETS = 4096 // N
+  val L3_ASSOCIATIVE = 4096 // L3 K
+//  val NUMBER_OF_SETS = 4096 // N
   val WORD_SIZE = 1
   
   // Access latency (cycles)
