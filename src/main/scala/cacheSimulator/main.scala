@@ -7,7 +7,7 @@ import cacheSimulator.ConstantObject._
 
 object main {
   def main(args:Array[String]):Unit = {
-		val source = Source.fromFile(PATH_PREFIX + TRACE2)
+		val source = Source.fromFile(PATH_PREFIX + TRACE1)
     // Get trace content from source
     try {
       val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, L1_ASSOCIATIVE, L1_SIZE) // n = 128
@@ -78,11 +78,16 @@ object ConstantObject {
   
   val WORD_SIZE = 1
   val CACHE_ADDR_SIZE = 64
-//  val BYTE_PER_LINE = 256 // L
+  
+  val L1 = "L1"
+  val L2 = "L2"
+  val L3 = "L3"
+  
   val BYTE_PER_LINE = 64 // L
   val L1_ASSOCIATIVE = 1 // L1 K
   val L2_ASSOCIATIVE = 8 // L2 K
-  val L3_ASSOCIATIVE = 4096 // L3 K
+//  val L3_ASSOCIATIVE = 4096 // L3 K
+  val L3_ASSOCIATIVE = 2048 // L3 K
   
   val L1_SIZE = 32 //32KB
   val L2_SIZE = 256 // 256KB
@@ -97,7 +102,13 @@ object ConstantObject {
   val L3_LATENCY = 32
   val MEMORY_LATENCY = 120
   
-  val LRU_OR_FIFO = true // default: LRU
+//  val LRU_OR_LFU = true // LRU
+  val LRU_OR_LFU = false // LFU
+  val STREAMBUFFER_SIZE = 10
+  val NUM_OF_STREAMBUFFER = 100
+//  val NUM_OF_STREAMBUFFER = 100
+  val BUFFER_RANDOM_OR_LFU = true // Random
+//  val BUFFER_RANDOM_OR_LFU = false // LFU
   
   // logarithm base 2
   var log2 = (x: Integer) => (log10(x.toDouble)/log10(2.0)).toInt
