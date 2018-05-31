@@ -3,19 +3,17 @@ package cacheSimulator
 import scala.io.Source
 import scala.math.log10
 import java.io.{FileNotFoundException, IOException}
-import cacheSimulator.ConstantObject.{ PATH_PREFIX, TRACE1, TRACE2,
-                                      INSTR_READ, BYTE_PER_LINE, //NUMBER_OF_SETS, 
-                                      L1_ASSOCIATIVE, L2_ASSOCIATIVE, L3_ASSOCIATIVE}
+import cacheSimulator.ConstantObject._
 
 object main {
   def main(args:Array[String]):Unit = {
 		val source = Source.fromFile(PATH_PREFIX + TRACE2)
     // Get trace content from source
     try {
-      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, L1_ASSOCIATIVE, 32) // n = 128
-      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, L1_ASSOCIATIVE, 32)
-      val L2              = Cache("L2 2", BYTE_PER_LINE, L2_ASSOCIATIVE, 256) // n = 128
-      val L3              = Cache("L3 3", BYTE_PER_LINE, L3_ASSOCIATIVE, 2048)
+      val L1_Instruction  = Cache("L1 Instruction", BYTE_PER_LINE, L1_ASSOCIATIVE, L1_SIZE) // n = 128
+      val L1_Data         = Cache("L1 Data", BYTE_PER_LINE, L1_ASSOCIATIVE, L1_SIZE)
+      val L2              = Cache("L2 2", BYTE_PER_LINE, L2_ASSOCIATIVE, L2_SIZE) // n = 128
+      val L3              = Cache("L3 3", BYTE_PER_LINE, L3_ASSOCIATIVE, L3_SIZE)
       
       L1_Instruction.setSubCache(L2)
       L1_Data.setSubCache(L2)
@@ -27,7 +25,7 @@ object main {
       val name = {
     		  val month = new SimpleDateFormat("MM")
     				  val day = new SimpleDateFormat("dd")
-    				  val hour = new SimpleDateFormat("hh")
+    				  val hour = new SimpleDateFormat("HH")
     				  val min = new SimpleDateFormat("mm")
     				  month.format(time) + day.format(time) + hour.format(time) + min.format(time)
       }
@@ -78,14 +76,19 @@ object ConstantObject {
   val DATA_WRITE = 1
   val INSTR_READ = 2
   
+  val WORD_SIZE = 1
   val CACHE_ADDR_SIZE = 64
 //  val BYTE_PER_LINE = 256 // L
   val BYTE_PER_LINE = 64 // L
   val L1_ASSOCIATIVE = 1 // L1 K
   val L2_ASSOCIATIVE = 8 // L2 K
   val L3_ASSOCIATIVE = 4096 // L3 K
+  
+  val L1_SIZE = 32 //32KB
+  val L2_SIZE = 256 // 256KB
+  val L3_SIZE = 2048 // 2MB
+  val KB = 1024
 //  val NUMBER_OF_SETS = 4096 // N
-  val WORD_SIZE = 1
   
   // Access latency (cycles)
   val L1_INST_LATENCY = 4
@@ -94,8 +97,8 @@ object ConstantObject {
   val L3_LATENCY = 32
   val MEMORY_LATENCY = 120
   
-  // 
-  val KB = 1024
+  val LRU_OR_FIFO = true // default: LRU
+  
   // logarithm base 2
   var log2 = (x: Integer) => (log10(x.toDouble)/log10(2.0)).toInt
 }

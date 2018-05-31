@@ -1,9 +1,9 @@
 package cacheSimulator
 
-import cacheSimulator.ConstantObject.{WORD_SIZE, KB, log2,
-                                     DATA_READ, DATA_WRITE, INSTR_READ,
-                                      CACHE_ADDR_SIZE, PATH_PREFIX, RESULT_PREFIX}
+import cacheSimulator.ConstantObject._
 import scala.math.pow
+import scala.collection.mutable.Queue
+import scala.util.Random
 
 case class Cache 
   (identifier:String, 
@@ -20,6 +20,7 @@ case class Cache
   
   // sub cache
   var subCache:Cache = _
+  val level = this.identifier.split(" ")(0)
  
   val (tagBit, indexBit, offsetBit, n) = {
     val blockSize = l * WORD_SIZE
@@ -35,26 +36,30 @@ case class Cache
   // cache Structure (valid , tag)
   var cacheStruct = CacheStruct(n, k)
   
-  // LRU count
+  // LRU
   var LRU = Array.fill[Int](n, k)(0)
   var LRU_i = Array.fill[Int](n)(0)
   var LRU_j = Array.fill[Int](n)(0)
   var LRU_max = Array.fill[Int](n)(0)
+  
+  // FIFO
+  
   
   // Bit masks
   val tagBitMask = (pow(2, tagBit).toLong - 1) << (indexBit + offsetBit)
   val indexBitMask = (pow(2, indexBit).toLong - 1) << (offsetBit)
   val offsetBitMask = (pow(2, offsetBit).toLong - 1)
   
+  // buffer
+  val streamBuffer:Array[StreamBuffer] = {
+    if (level == "L3") {
+      Array.fill[StreamBuffer](512)(StreamBuffer(10))
+    } else {
+      null
+    }
+  }
+  
   def access(accessType:Int, content:Long):Unit = {
-//		  if (this.identifier == "L2 2") {
-//		  println(tagBit)
-//		  println(indexBit)
-//		  println(offsetBit)
-//    println(tagBitMask.toBinaryString + " , " + tagBitMask)
-//    println(indexBitMask.toBinaryString + " , " + indexBitMask)
-//    println(offsetBitMask.toBinaryString)
-//		  }
     totalCount += 1
     
     var contentIndex= ( ( content & indexBitMask ) >>> offsetBit ).toInt
@@ -64,51 +69,97 @@ case class Cache
 	  // Increment LRU count having proper contentIndex
 	  LRU(contentIndex) = LRU(contentIndex).map(_+1)
 	  
-	  // Set maximum LRU count, i, j
-//	  if (this.identifier == "L2 2") {
-//	  println("toLong :"+contentTag)
-//	  println("toInt:"+contentTag.toInt)
-//	  println("toLong :"+contentIndex)
-//	  println("toInt:"+contentIndex.toInt)
-//	  println("toBinaryString:"+contentTag.toBinaryString)
-//	  println("toBinaryString:"+content.toBinaryString)
-//	  }
-	  
-//	  println("toBinaryString:"+ (content & tagBitMask) + ", " + tagBitMask)
-	  if ( LRU_max(contentIndex) < LRU(contentIndex).max ) {
-	    LRU_max(contentIndex) = LRU(contentIndex).max
-	    LRU_i(contentIndex) = contentIndex
-	    LRU_j(contentIndex) = LRU(contentIndex).indexOf(LRU(contentIndex).max)
-//  	  if (this.identifier == "L2 2") {
-//  	    println(s"max $LRU_max")
-//  	  }
-	  }
+	  // generate LRU Max and index(i,j)
+    getLRUMax(contentIndex)
   
     // 1) HIT case
     //  Find proper block index:n | associative:k(iteration) | (valid = true & tag is the same)
     val res = cacheStruct.find(contentIndex, contentTag) 
     if (res._1 == true) {
-      hitCount += 1
+      incrHitCount
       LRU(contentIndex)(res._2) = 0
     	return 
     }
     // 2) MISS case
-    missCount += 1
-    LRU(contentIndex)(LRU_j(contentIndex)) = 0
-    accessType match {
-      case DATA_READ => dataReadMissCount += 1
-      case DATA_WRITE => dataWriteMissCount += 1
-      case INSTR_READ => instrReadMissCount += 1
-    }
-    cacheStruct.setNewPosition(LRU_i(contentIndex), LRU_j(contentIndex), contentTag)
-    
-    if (this.subCache != null) {
-      this.subCache.access(accessType, content)
+    // 2-1) L3: prefetch(victim=random) + {LRU or FIFO}
+    if (level == "L3") {
+      // LRU
+      if (LRU_OR_FIFO == true) {
+      	LRU(contentIndex)(LRU_j(contentIndex)) = 0
+        val res = checkBuffer(contentTag)
+       	if (res._1 == true) {
+       	  cacheStruct.fetch(LRU_i(contentIndex), LRU_j(contentIndex), contentTag)
+      	  this.streamBuffer(res._2).preFetch(contentTag)
+          incrHitCount
+        } else {
+      	  cacheStruct.fetch(LRU_i(contentIndex), LRU_j(contentIndex), contentTag)
+      	  val index = findIndex
+          this.streamBuffer(index).preFetchAll(contentTag)
+          incrMissCount(accessType)
+        }
+      }
+      // FIFO
+      else {
+        
+      }
+    } 
+    // 2-2) L1,L2: fetch + LRU
+    else if (level == "L1" || level == "L2"){
+    	LRU(contentIndex)(LRU_j(contentIndex)) = 0
+    	cacheStruct.fetch(LRU_i(contentIndex), LRU_j(contentIndex), contentTag)
+    	incrMissCount(accessType)
+    	this.subCache.access(accessType, content)
     }
   }
+  
+  def getLRUMax(contentIndex:Int) = {
+    if ( LRU_max(contentIndex) < LRU(contentIndex).max ) {
+    	LRU_max(contentIndex) = LRU(contentIndex).max
+    	LRU_i(contentIndex) = contentIndex
+    	LRU_j(contentIndex) = LRU(contentIndex).indexOf(LRU(contentIndex).max)
+    }
+  }
+  
+  def checkBuffer(contentTag:Long) = {
+    val res = streamBuffer.zipWithIndex.filter(x => (x._1.checkContains(contentTag) == true))
+                          .map(x => x._2)
+    if (res.isEmpty) {
+      (false, -1)
+    } else {
+      (true, res(0)) // return streamBuffer index
+    }
+  }
+  
+  def findIndex() = {
+    val res = streamBuffer.zipWithIndex.filter(x => (x._1.findEmptyBuffer() == true))
+                          .map(x => x._2)
+    if (res.isEmpty) {
+      // Do not have empty buffer
+      // So, return random index
+//      println("fullAll")
+      Random.nextInt(512)
+    } else {
+      res(0)
+    }
+  }
+  
+  def incrHitCount() {
+    this.hitCount += 1
+  }
+  
+  def incrMissCount(accessType:Int) {
+    this.missCount += 1
+    accessType match {
+      case DATA_READ => this.dataReadMissCount += 1
+      case DATA_WRITE => this.dataWriteMissCount += 1
+      case INSTR_READ => this.instrReadMissCount += 1
+    }
+  }
+  
   def setSubCache(cache:Cache):Unit = {
     this.subCache = cache
   }
+  
   def printStatistics(name:String):Unit = {
 		  def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
 			  val p = new java.io.PrintWriter(f)
@@ -142,10 +193,50 @@ case class CacheStruct (n:Int, k:Int) {
     	(false, -1)
     }
   }
-	def setNewPosition(i:Int, j:Int, contentTag:Long) {
-//	  if (identifier == "L2 2" && i == 0) {
-//	    println(s"$i , $j / prev: ${this.data(i)(j)} , cur: $contentTag")
-//	  }
+	def fetch(i:Int, j:Int, contentTag:Long) {
     this.data(i)(j) = (true, contentTag)
+  }
+}
+
+case class StreamBuffer(size:Int) {
+  var buf = Queue[Long](-1)
+  
+  def checkContains(contentTag:Long):Boolean = {
+    if (buf.contains(contentTag)) {
+      true
+    }
+    else {
+      false
+    }
+  }
+  def findEmptyBuffer() = {
+    if (buf(0) == -1) true
+    else false
+  }
+  // all miss case
+  def preFetchAll(contentTag:Long) = {
+    // dequeue all element
+    for {
+      i <- 0 until buf.size
+    } {
+    	buf.dequeue
+    }
+    // enqueue sequence element
+    for {
+      i <- 0 until size
+    } {
+      buf.enqueue((contentTag + i))
+    }
+  }
+  // hit case
+  def preFetch(contentTag:Long) = {
+//		buf(index) = (buf.max+1)
+    val index = buf.indexOf(contentTag)
+    for {
+      i <- 0 to index
+    } {
+      buf.dequeue
+      buf.enqueue((buf.last + 1))
+    }
   }
 }
